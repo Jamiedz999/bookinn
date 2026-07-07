@@ -1,0 +1,29 @@
+# Internal agent config — not part of the public project
+.scratch/
+CLAUDE.md
+docs/agents/
+Side-Project-要求与评分Rubric.md
+.claude/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Java / Maven
+target/
+*.class
+
+# Node
+node_modules/
+dist/
+build/
+
+# Env / secrets
+.env
+.env.local
+*.log
