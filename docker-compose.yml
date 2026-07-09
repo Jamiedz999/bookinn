@@ -1,0 +1,17 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: bookinn-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bookinn
+      MYSQL_USER: bookinn
+      MYSQL_PASSWORD: bookinn
+    ports:
+      - "3306:3306"
+    volumes:
+      - bookinn-mysql-data:/var/lib/mysql
+
+volumes:
+  bookinn-mysql-data:

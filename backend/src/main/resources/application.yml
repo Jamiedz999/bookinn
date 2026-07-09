@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: bookinn-backend
+  datasource:
+    url: jdbc:mysql://localhost:3306/bookinn
+    username: bookinn
+    password: bookinn
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
