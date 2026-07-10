@@ -5,20 +5,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-@WebMvcTest(HelloController.class)
 class HelloControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+  private final MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new HelloController()).build();
 
-    @Test
-    void helloReturnsOk() throws Exception {
-        mockMvc.perform(get("/api/hello"))
-            .andExpect(status().isOk())
-            .andExpect(content().string("BookInn backend is alive"));
-    }
+  @Test
+  void helloReturnsOk() throws Exception {
+    mockMvc
+        .perform(get("/api/hello"))
+        .andExpect(status().isOk())
+        .andExpect(content().string("BookInn backend is alive"));
+  }
 }
