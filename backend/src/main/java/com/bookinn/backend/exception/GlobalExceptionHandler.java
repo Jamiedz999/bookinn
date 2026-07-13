@@ -29,6 +29,19 @@ public class GlobalExceptionHandler {
   }
 
   /**
+   * Handles a request for a listing that does not exist or is not visible to the caller.
+   *
+   * @param ex the raised exception
+   * @param request the failing request
+   * @return a 404 response
+   */
+  @ExceptionHandler(ListingNotFoundException.class)
+  public ResponseEntity<ApiError> handleListingNotFound(
+      ListingNotFoundException ex, HttpServletRequest request) {
+    return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+  }
+
+  /**
    * Handles bad login credentials or an invalid refresh token.
    *
    * @param ex the raised exception
