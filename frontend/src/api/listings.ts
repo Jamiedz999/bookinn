@@ -13,6 +13,15 @@ export async function getHostListings(): Promise<ListingSummary[]> {
   return response.data
 }
 
+/**
+ * Fetches one of the host's own listings for editing, regardless of status. Uses the host endpoint
+ * (not public detail) so a deactivated listing can still be loaded into the edit form.
+ */
+export async function getHostListing(id: number): Promise<Listing> {
+  const response = await api.get<Listing>(`/host/listings/${id}`)
+  return response.data
+}
+
 /** Creates a listing owned by the authenticated host. */
 export async function createListing(body: ListingInput): Promise<Listing> {
   const response = await api.post<Listing>('/listings', body)

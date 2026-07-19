@@ -112,4 +112,19 @@ public class ListingController {
       @AuthenticationPrincipal AuthenticatedUser principal) {
     return listingService.getHostListings(principal.id());
   }
+
+  /**
+   * Returns one of the authenticated host's own listings in full detail, regardless of status, so
+   * the edit form can prefill even a deactivated listing (the public detail endpoint hides those).
+   *
+   * @param principal the authenticated host
+   * @param id id of the listing
+   * @return the owned listing detail
+   */
+  @GetMapping("/api/host/listings/{id}")
+  @PreAuthorize("hasRole('HOST')")
+  public ListingResponse hostListing(
+      @AuthenticationPrincipal AuthenticatedUser principal, @PathVariable Long id) {
+    return listingService.getOwnedDetail(principal.id(), id);
+  }
 }

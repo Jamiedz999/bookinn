@@ -254,4 +254,26 @@ class ListingServiceTest {
         .extracting(ListingSummaryResponse::status)
         .containsExactly(ListingStatus.ACTIVE, ListingStatus.INACTIVE);
   }
+
+  // --- owned detail (edit prefill) ----------------------------------------
+
+  @Test
+  void getOwnedDetailReturnsOwnedListingRegardlessOfStatus() {
+    when(listingRepository.findById(5L))
+        .thenReturn(Optional.of(existingListing(5L, HOST_ID, ListingStatus.INACTIVE)));
+
+    ListingResponse response = service.getOwnedDetail(HOST_ID, 5L);
+
+    assertThat(response.id()).isEqualTo(5L);
+    assertThat(response.status()).isEqualTo(ListingStatus.INACTIVE);
+  }
+
+  @Test
+  void getOwnedDetailIsForbiddenWhenCallerIsNotTheOwner() {
+    when(listingRepository.findById(5L))
+        .thenReturn(Optional.of(existingListing(5L, OTHER_HOST_ID, ListingStatus.ACTIVE)));
+
+    assertThatThrownBy(() -> service.getOwnedDetail(HOST_ID, 5L))
+        .isInstanceOf(AccessDeniedException.class);
+  }
 }

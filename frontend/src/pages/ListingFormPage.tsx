@@ -11,7 +11,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { createListing, getListing, updateListing } from '../api/listings'
+import { createListing, getHostListing, updateListing } from '../api/listings'
 import { getAmenities } from '../api/amenities'
 import type { Amenity, ListingInput } from '../api/types'
 import { useAuth } from '../auth/useAuth'
@@ -36,9 +36,9 @@ export function ListingFormPage() {
   const amenitiesQuery = useQuery({ queryKey: ['amenities'], queryFn: getAmenities })
 
   const listingQuery = useQuery({
-    queryKey: ['listing', listingId],
-    queryFn: () => getListing(listingId as number),
-    enabled: isEdit,
+    queryKey: ['host-listing', listingId],
+    queryFn: () => getHostListing(listingId as number),
+    enabled: isEdit && Number.isFinite(listingId),
   })
 
   useEffect(() => {
@@ -90,6 +90,11 @@ export function ListingFormPage() {
         <Typography variant="h4" gutterBottom>
           {isEdit ? 'Edit listing' : 'New listing'}
         </Typography>
+        {isEdit && listingQuery.isError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            Could not load this listing.
+          </Alert>
+        )}
         {mutation.isError && (
           <Alert severity="error" sx={{ mb: 2 }}>
             Could not save the listing. Please check the fields and try again.

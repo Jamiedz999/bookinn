@@ -78,10 +78,12 @@ describe('ListingFormPage', () => {
     expect(posted!.pricePerNight).toBe(90)
   })
 
-  it('prefills the form when editing an existing listing', async () => {
+  it('prefills the form when editing a deactivated listing (via the host endpoint)', async () => {
     server.use(
       http.get('/api/amenities', () => HttpResponse.json([{ id: 1, name: 'Wifi' }])),
-      http.get('/api/listings/3', () => HttpResponse.json(listing)),
+      // Public detail 404s for INACTIVE listings, so the edit form must use the host endpoint.
+      http.get('/api/listings/3', () => new HttpResponse(null, { status: 404 })),
+      http.get('/api/host/listings/3', () => HttpResponse.json({ ...listing, status: 'INACTIVE' })),
     )
 
     renderForm(host, '/host/listings/3/edit')

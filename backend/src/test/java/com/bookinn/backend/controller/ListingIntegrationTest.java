@@ -240,4 +240,38 @@ class ListingIntegrationTest extends AbstractIntegrationTest {
 
     assertThat(tree(result).size()).isEqualTo(1);
   }
+
+  @Test
+  void hostCanFetchOwnInactiveListingForEditing() throws Exception {
+    String token = hostToken("edit-inactive-host@example.com");
+    long listingId = createListing(token, List.of(), List.of("cover.jpg"));
+    mockMvc
+        .perform(
+            patch("/api/listings/" + listingId + "/status")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("status", "INACTIVE"))))
+        .andExpect(status().isOk());
+
+    // Public detail hides the deactivated listing, but the owner can still load it to edit.
+    mockMvc.perform(get("/api/listings/" + listingId)).andExpect(status().isNotFound());
+    mockMvc
+        .perform(get("/api/host/listings/" + listingId).header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(listingId))
+        .andExpect(jsonPath("$.status").value("INACTIVE"))
+        .andExpect(jsonPath("$.photoUrls[0]").value("cover.jpg"));
+  }
+
+  @Test
+  void hostCannotFetchAnotherHostsListingDetail() throws Exception {
+    String hostA = hostToken("detail-owner-a@example.com");
+    String hostB = hostToken("detail-intruder-b@example.com");
+    long listingId = createListing(hostA, List.of(), List.of());
+
+    mockMvc
+        .perform(get("/api/host/listings/" + listingId).header("Authorization", "Bearer " + hostB))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.status").value(403));
+  }
 }

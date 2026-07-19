@@ -4,6 +4,7 @@ import { server } from '../test/mocks/server'
 import {
   changeListingStatus,
   createListing,
+  getHostListing,
   getHostListings,
   getListing,
   updateListing,
@@ -65,6 +66,19 @@ describe('listings api', () => {
 
     expect(result).toHaveLength(1)
     expect(result[0].status).toBe('INACTIVE')
+  })
+
+  it('getHostListing returns an owned listing regardless of status', async () => {
+    server.use(
+      http.get('/api/host/listings/3', () =>
+        HttpResponse.json({ ...listing, status: 'INACTIVE' }),
+      ),
+    )
+
+    const result = await getHostListing(3)
+
+    expect(result.status).toBe('INACTIVE')
+    expect(result.title).toBe('Sea view loft')
   })
 
   it('createListing posts the input and returns the created listing', async () => {

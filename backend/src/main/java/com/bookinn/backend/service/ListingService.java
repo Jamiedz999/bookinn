@@ -171,6 +171,20 @@ public class ListingService {
   }
 
   /**
+   * Returns one of the host's own listings in full detail, regardless of status, for the edit form.
+   * Enforces ownership via {@link #loadOwned}, so this is not a way to read another host's listing
+   * (nor a public bypass of the INACTIVE-hiding rule on {@link #getPublicDetail}).
+   *
+   * @param hostId id of the authenticated host
+   * @param listingId id of the listing to load
+   * @return the owned listing's detail view
+   */
+  @Transactional(readOnly = true)
+  public ListingResponse getOwnedDetail(Long hostId, Long listingId) {
+    return ListingResponse.from(loadOwned(hostId, listingId));
+  }
+
+  /**
    * Lists the host's own properties, including INACTIVE ones, newest first.
    *
    * @param hostId id of the authenticated host
