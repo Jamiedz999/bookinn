@@ -1,26 +1,30 @@
 package com.bookinn.backend.service;
 
 import com.bookinn.backend.domain.Listing;
+import com.bookinn.backend.domain.ListingPhoto;
+import com.bookinn.backend.domain.ListingStatus;
+import com.bookinn.backend.domain.User;
 import com.bookinn.backend.dto.CreateListingRequest;
 import com.bookinn.backend.dto.ListingResponse;
 import com.bookinn.backend.dto.ListingStatusRequest;
 import com.bookinn.backend.dto.ListingSummaryResponse;
 import com.bookinn.backend.dto.UpdateListingRequest;
+import com.bookinn.backend.exception.InvalidCredentialsException;
+import com.bookinn.backend.exception.ListingNotFoundException;
 import com.bookinn.backend.repository.AmenityRepository;
 import com.bookinn.backend.repository.ListingRepository;
 import com.bookinn.backend.repository.UserRepository;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Listing lifecycle for hosts: create, edit, activate/deactivate, plus public detail and the host's
- * own list.
- *
- * <p><strong>Scaffold status (M2):</strong> the class, its dependencies, and every method seam are
- * wired, but the business bodies are intentionally left as {@code TODO}s per the agreed split — the
- * ownership rule, amenity/photo round-trip mapping, and status/visibility rules are yours to
- * implement (with their unit tests). Each method's Javadoc states the exact rule from PRD §4/§6.
+ * own list. Ownership of a listing is enforced here via {@link #loadOwned} as the service-layer
+ * half of the {@code @PreAuthorize} + service "double check" (PRD §6, M2).
  */
 @Service
 public class ListingService {
@@ -47,8 +51,8 @@ public class ListingService {
 
   /**
    * Creates a listing owned by the given host. New listings start {@code ACTIVE}. Resolves {@code
-   * amenityIds} against the dictionary and materialises {@code photoUrls} into ordered photos (index
-   * becomes {@code sortOrder}).
+   * amenityIds} against the dictionary and materialises {@code photoUrls} into ordered photos
+   * (index becomes {@code sortOrder}).
    *
    * @param hostId id of the authenticated host, taken from the principal
    * @param request the create payload
@@ -56,9 +60,58 @@ public class ListingService {
    */
   @Transactional
   public ListingResponse create(Long hostId, CreateListingRequest request) {
-    // TODO(M2): load host via userRepository; map fields; resolve amenities; add ordered photos;
-    // save; return ListingResponse.from(saved).
-    throw new UnsupportedOperationException("TODO(M2): ListingService.create");
+    User host =
+        userRepository
+            .findById(hostId)
+            .orElseThrow(
+                () -> new InvalidCredentialsException("Authenticated user no longer exists"));
+
+    Listing listing = new Listing();
+    listing.setHost(host);
+    listing.setTitle(request.title());
+    listing.setDescription(request.description());
+    listing.setCity(request.city());
+    listing.setAddress(request.address());
+    listing.setPricePerNight(request.pricePerNight());
+    listing.setMaxGuests(request.maxGuests());
+    // status is left at the entity default of ACTIVE.
+
+    applyAmenities(listing, request.amenityIds());
+    applyPhotos(listing, request.photoUrls());
+
+    return ListingResponse.from(listingRepository.save(listing));
+  }
+
+  /**
+   * Replaces a listing's amenities with the dictionary entries for the given ids. A {@code null} or
+   * empty set clears them. Reusable by {@link #update}.
+   *
+   * @param listing the listing to mutate
+   * @param amenityIds amenity dictionary ids, may be {@code null}
+   */
+  private void applyAmenities(Listing listing, Set<Long> amenityIds) {
+    if (amenityIds == null || amenityIds.isEmpty()) {
+      listing.getAmenities().clear();
+      return;
+    }
+    listing.setAmenities(new LinkedHashSet<>(amenityRepository.findAllById(amenityIds)));
+  }
+
+  /**
+   * Rebuilds a listing's photos from the given URLs, using list position as {@code sortOrder}. A
+   * {@code null} list clears them. Reusable by {@link #update}.
+   *
+   * @param listing the listing to mutate
+   * @param photoUrls image URLs in display order, may be {@code null}
+   */
+  private void applyPhotos(Listing listing, List<String> photoUrls) {
+    listing.clearPhotos();
+    if (photoUrls == null) {
+      return;
+    }
+    for (int i = 0; i < photoUrls.size(); i++) {
+      listing.addPhoto(new ListingPhoto(photoUrls.get(i), i));
+    }
   }
 
   /**
@@ -72,9 +125,16 @@ public class ListingService {
    */
   @Transactional
   public ListingResponse update(Long hostId, Long listingId, UpdateListingRequest request) {
-    // TODO(M2): loadOwned(hostId, listingId); overwrite scalar fields; replace amenity set;
-    // clearPhotos() then re-add ordered photos; return ListingResponse.from(listing).
-    throw new UnsupportedOperationException("TODO(M2): ListingService.update");
+    Listing listing = loadOwned(hostId, listingId);
+    listing.setTitle(request.title());
+    listing.setDescription(request.description());
+    listing.setCity(request.city());
+    listing.setAddress(request.address());
+    listing.setPricePerNight(request.pricePerNight());
+    listing.setMaxGuests(request.maxGuests());
+    applyAmenities(listing, request.amenityIds());
+    applyPhotos(listing, request.photoUrls());
+    return ListingResponse.from(listing);
   }
 
   /**
@@ -88,8 +148,9 @@ public class ListingService {
   @Transactional
   public ListingResponse changeStatus(
       Long hostId, Long listingId, ListingStatusRequest request) {
-    // TODO(M2): loadOwned(hostId, listingId); set status; return ListingResponse.from(listing).
-    throw new UnsupportedOperationException("TODO(M2): ListingService.changeStatus");
+    Listing listing = loadOwned(hostId, listingId);
+    listing.setStatus(request.status());
+    return ListingResponse.from(listing);
   }
 
   /**
@@ -101,9 +162,12 @@ public class ListingService {
    */
   @Transactional(readOnly = true)
   public ListingResponse getPublicDetail(Long listingId) {
-    // TODO(M2): find by id; if missing or status != ACTIVE throw ListingNotFoundException;
-    // else return ListingResponse.from(listing).
-    throw new UnsupportedOperationException("TODO(M2): ListingService.getPublicDetail");
+    Listing listing =
+        listingRepository
+            .findById(listingId)
+            .filter(candidate -> candidate.getStatus() == ListingStatus.ACTIVE)
+            .orElseThrow(() -> new ListingNotFoundException("Listing not found: " + listingId));
+    return ListingResponse.from(listing);
   }
 
   /**
@@ -114,9 +178,9 @@ public class ListingService {
    */
   @Transactional(readOnly = true)
   public List<ListingSummaryResponse> getHostListings(Long hostId) {
-    // TODO(M2): listingRepository.findByHostIdOrderByCreatedAtDesc(hostId)
-    // .stream().map(ListingSummaryResponse::from).toList().
-    throw new UnsupportedOperationException("TODO(M2): ListingService.getHostListings");
+    return listingRepository.findByHostIdOrderByCreatedAtDesc(hostId).stream()
+        .map(ListingSummaryResponse::from)
+        .toList();
   }
 
   /**
@@ -131,7 +195,13 @@ public class ListingService {
    * @return the owned listing
    */
   private Listing loadOwned(Long hostId, Long listingId) {
-    // TODO(M2): find by id; if absent or host id mismatch throw AccessDeniedException; else return.
-    throw new UnsupportedOperationException("TODO(M2): ListingService.loadOwned");
+    Listing listing =
+        listingRepository
+            .findById(listingId)
+            .orElseThrow(() -> new AccessDeniedException("Not the owner of the requested listing"));
+    if (!listing.getHost().getId().equals(hostId)) {
+      throw new AccessDeniedException("Not the owner of the requested listing");
+    }
+    return listing;
   }
 }

@@ -24,8 +24,8 @@ public record ListingSummaryResponse(
     String coverPhotoUrl) {
 
   /**
-   * Projects a {@link Listing} entity to its summary view. Must be called inside an open transaction
-   * so the lazy photo collection can be read.
+   * Projects a {@link Listing} entity to its summary view. Must be called inside an open
+   * transaction so the lazy photo collection can be read.
    *
    * @param listing the entity
    * @return the summary DTO

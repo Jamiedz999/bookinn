@@ -29,7 +29,8 @@ public record UpdateListingRequest(
     @Size(max = 5000) String description,
     @NotBlank @Size(max = 100) String city,
     @NotBlank @Size(max = 255) String address,
-    @NotNull @DecimalMin(value = "0.01") @Digits(integer = 8, fraction = 2) BigDecimal pricePerNight,
+    @NotNull @DecimalMin(value = "0.01") @Digits(integer = 8, fraction = 2)
+        BigDecimal pricePerNight,
     @NotNull @Min(1) @Max(50) Integer maxGuests,
     Set<Long> amenityIds,
     List<@NotBlank @Size(max = 500) String> photoUrls) {}

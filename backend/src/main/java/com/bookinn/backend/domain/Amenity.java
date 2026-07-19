@@ -11,8 +11,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * A fixed feature a listing can offer (wifi, kitchen, parking, ...). The dictionary is reference data
- * seeded by Flyway; hosts select from it rather than create rows. Maps to the {@code amenity} table.
+ * A fixed feature a listing can offer (wifi, kitchen, parking, ...). The dictionary is reference
+ * data seeded by Flyway; hosts pick from it rather than create rows. Maps to the {@code amenity}
+ * table.
  */
 @Entity
 @Table(name = "amenity")

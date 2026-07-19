@@ -28,8 +28,8 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 /**
- * A bookable property owned by a host. Carries its amenities (N-M) and ordered photos (1-N). Maps to
- * the {@code listing} table defined in Flyway V1.
+ * A bookable property owned by a host. Carries its amenities (N-M) and ordered photos (1-N). Maps
+ * to the {@code listing} table defined in Flyway V1.
  */
 @Entity
 @Table(name = "listing")
@@ -42,7 +42,7 @@ public class Listing {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  /** Owning host. Ownership rules compare {@code host.getId()} against the authenticated principal. */
+  /** Owning host. Ownership rules compare {@code host.getId()} to the caller's id. */
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "host_id", nullable = false)
   private User host;
