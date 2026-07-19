@@ -184,6 +184,22 @@ class ListingIntegrationTest extends AbstractIntegrationTest {
   }
 
   @Test
+  void hostCannotChangeStatusOfAnotherHostsListing() throws Exception {
+    String hostA = hostToken("status-owner-a@example.com");
+    String hostB = hostToken("status-intruder-b@example.com");
+    long listingId = createListing(hostA, List.of(), List.of());
+
+    mockMvc
+        .perform(
+            patch("/api/listings/" + listingId + "/status")
+                .header("Authorization", "Bearer " + hostB)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("status", "INACTIVE"))))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.status").value(403));
+  }
+
+  @Test
   void deactivatedListingIsHiddenFromPublicDetail() throws Exception {
     String token = hostToken("deactivate-host@example.com");
     long listingId = createListing(token, List.of(), List.of());

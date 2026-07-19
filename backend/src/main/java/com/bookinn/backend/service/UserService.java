@@ -42,6 +42,10 @@ public class UserService {
    * Grants the current user the HOST role so they can manage listings. Idempotent: a user who is
    * already a host is returned unchanged.
    *
+   * <p>Roles are embedded in the access token at login, so the returned view advertising HOST does
+   * not by itself let the current token through HOST-only endpoints — the caller must obtain a new
+   * access token (re-login, or refresh) before {@code @PreAuthorize("hasRole('HOST')")} accepts it.
+   *
    * @param userId id taken from the authenticated principal
    * @return the user's public view including the HOST role
    * @throws InvalidCredentialsException if the authenticated user no longer exists
