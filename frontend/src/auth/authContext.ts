@@ -7,6 +7,7 @@ export interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   register: (body: RegisterRequest) => Promise<void>
   demoLogin: (role: Role) => Promise<void>
+  becomeHost: () => Promise<void>
   logout: () => Promise<void>
 }
 

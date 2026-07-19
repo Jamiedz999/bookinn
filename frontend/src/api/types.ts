@@ -45,3 +45,25 @@ export interface Listing {
   amenities: Amenity[]
   photoUrls: string[]
 }
+
+/** Compact listing view for the host's "my listings" list (mirrors ListingSummaryResponse). */
+export interface ListingSummary {
+  id: number
+  title: string
+  city: string
+  pricePerNight: number
+  status: ListingStatus
+  coverPhotoUrl: string | null
+}
+
+/** Payload for create and update; amenities by id, photos as an ordered URL list. */
+export interface ListingInput {
+  title: string
+  description: string
+  city: string
+  address: string
+  pricePerNight: number
+  maxGuests: number
+  amenityIds: number[]
+  photoUrls: string[]
+}

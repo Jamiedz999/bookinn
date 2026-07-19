@@ -36,14 +36,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(result.user)
   }, [])
 
+  const becomeHost = useCallback(async () => {
+    setUser(await authApi.becomeHost())
+  }, [])
+
   const logout = useCallback(async () => {
     await authApi.logout()
     setUser(null)
   }, [])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, login, register, demoLogin, logout }),
-    [user, loading, login, register, demoLogin, logout],
+    () => ({ user, loading, login, register, demoLogin, becomeHost, logout }),
+    [user, loading, login, register, demoLogin, becomeHost, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

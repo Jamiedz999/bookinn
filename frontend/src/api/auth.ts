@@ -28,3 +28,14 @@ export async function getMe(): Promise<User> {
   const response = await api.get<User>('/users/me')
   return response.data
 }
+
+/**
+ * Grants the current user the HOST role, then refreshes the session so the new access token carries
+ * HOST (roles are embedded in the JWT, so the old token would still be rejected by HOST-only routes).
+ */
+export async function becomeHost(): Promise<User> {
+  await api.post('/users/me/become-host')
+  const response = await api.post<AuthResponse>('/auth/refresh')
+  setAccessToken(response.data.accessToken)
+  return response.data.user
+}

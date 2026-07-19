@@ -1,3 +1,4 @@
+import { Link as RouterLink } from 'react-router-dom'
 import { Box, Button, Chip, Container, Stack, Typography } from '@mui/material'
 import { useAuth } from '../auth/useAuth'
 
@@ -15,9 +16,14 @@ export function HomePage() {
             <Chip key={role} label={role} color="primary" variant="outlined" />
           ))}
         </Stack>
-        <Button variant="outlined" onClick={() => logout()}>
-          Log out
-        </Button>
+        <Stack direction="row" spacing={2}>
+          <Button component={RouterLink} to="/host/listings" variant="contained">
+            My listings
+          </Button>
+          <Button variant="outlined" onClick={() => logout()}>
+            Log out
+          </Button>
+        </Stack>
       </Box>
     </Container>
   )

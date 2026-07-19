@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { http, HttpResponse } from 'msw'
 import { server } from '../test/mocks/server'
-import { demoLogin, getMe, login, logout, register } from './auth'
+import { becomeHost, demoLogin, getMe, login, logout, register } from './auth'
 import { getAccessToken, setAccessToken } from './tokenStore'
 
 const user = { id: 7, email: 'demo@bookinn.app', name: 'Demo', demo: true, roles: ['GUEST'] }
@@ -56,5 +56,21 @@ describe('auth api', () => {
     const me = await getMe()
 
     expect(me.email).toBe(user.email)
+  })
+
+  it('becomeHost grants HOST then refreshes to a token that carries it', async () => {
+    setAccessToken('guest-token')
+    const hostUser = { ...user, roles: ['GUEST', 'HOST'] }
+    server.use(
+      http.post('/api/users/me/become-host', () => HttpResponse.json(hostUser)),
+      http.post('/api/auth/refresh', () =>
+        HttpResponse.json({ accessToken: 'host-token', user: hostUser }),
+      ),
+    )
+
+    const result = await becomeHost()
+
+    expect(result.roles).toContain('HOST')
+    expect(getAccessToken()).toBe('host-token')
   })
 })
