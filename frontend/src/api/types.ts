@@ -23,3 +23,25 @@ export interface RegisterRequest {
   password: string
   name: string
 }
+
+export type ListingStatus = 'ACTIVE' | 'INACTIVE'
+
+export interface Amenity {
+  id: number
+  name: string
+}
+
+/** Full public detail view of a listing (mirrors backend ListingResponse). */
+export interface Listing {
+  id: number
+  hostId: number
+  title: string
+  description: string | null
+  city: string
+  address: string
+  pricePerNight: number
+  maxGuests: number
+  status: ListingStatus
+  amenities: Amenity[]
+  photoUrls: string[]
+}
