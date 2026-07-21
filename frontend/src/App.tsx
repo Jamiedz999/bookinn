@@ -4,10 +4,12 @@ import CssBaseline from '@mui/material/CssBaseline'
 import { AuthProvider } from './auth/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { HomePage } from './pages/HomePage'
+import { HostBookingsPage } from './pages/HostBookingsPage'
 import { HostListingsPage } from './pages/HostListingsPage'
 import { ListingDetailPage } from './pages/ListingDetailPage'
 import { ListingFormPage } from './pages/ListingFormPage'
 import { LoginPage } from './pages/LoginPage'
+import { MyBookingsPage } from './pages/MyBookingsPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { SearchPage } from './pages/SearchPage'
 
@@ -28,9 +30,11 @@ function App() {
             <Route path="/listings/:id" element={<ListingDetailPage />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<HomePage />} />
+              <Route path="/bookings/my" element={<MyBookingsPage />} />
               <Route path="/host/listings" element={<HostListingsPage />} />
               <Route path="/host/listings/new" element={<ListingFormPage />} />
               <Route path="/host/listings/:id/edit" element={<ListingFormPage />} />
+              <Route path="/host/bookings" element={<HostBookingsPage />} />
             </Route>
           </Routes>
         </BrowserRouter>
