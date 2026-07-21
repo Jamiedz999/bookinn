@@ -56,6 +56,23 @@ export interface ListingSummary {
   coverPhotoUrl: string | null
 }
 
+/** One page of results (mirrors backend PageResponse). */
+export interface Page<T> {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
+/** Query parameters for the public listing search; all optional. */
+export interface SearchParams {
+  city?: string
+  checkIn?: string
+  checkOut?: string
+  page?: number
+}
+
 /** Payload for create and update; amenities by id, photos as an ordered URL list. */
 export interface ListingInput {
   title: string

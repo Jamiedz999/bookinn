@@ -40,7 +40,9 @@ public class SecurityConfig {
     "/v3/api-docs/**"
   };
 
-  private static final String[] PUBLIC_GET_PATHS = {"/api/listings/*", "/api/amenities"};
+  private static final String[] PUBLIC_GET_PATHS = {
+    "/api/listings", "/api/listings/*", "/api/amenities"
+  };
 
   /**
    * Builds the stateless filter chain.

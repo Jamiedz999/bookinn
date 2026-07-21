@@ -1,5 +1,14 @@
 import { api } from './client'
-import type { Listing, ListingInput, ListingStatus, ListingSummary } from './types'
+import type { Listing, ListingInput, ListingStatus, ListingSummary, Page, SearchParams } from './types'
+
+/**
+ * Public listing search. Undefined parameters are dropped by axios, so an empty object browses all
+ * active listings; supplying both dates filters out listings with an overlapping booking.
+ */
+export async function searchListings(params: SearchParams): Promise<Page<ListingSummary>> {
+  const response = await api.get<Page<ListingSummary>>('/listings', { params })
+  return response.data
+}
 
 /** Fetches a single listing's public detail. Rejects (404) when it is missing or deactivated. */
 export async function getListing(id: number): Promise<Listing> {

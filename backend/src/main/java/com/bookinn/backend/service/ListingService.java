@@ -8,15 +8,21 @@ import com.bookinn.backend.dto.CreateListingRequest;
 import com.bookinn.backend.dto.ListingResponse;
 import com.bookinn.backend.dto.ListingStatusRequest;
 import com.bookinn.backend.dto.ListingSummaryResponse;
+import com.bookinn.backend.dto.PageResponse;
 import com.bookinn.backend.dto.UpdateListingRequest;
 import com.bookinn.backend.exception.InvalidCredentialsException;
+import com.bookinn.backend.exception.InvalidDateRangeException;
 import com.bookinn.backend.exception.ListingNotFoundException;
 import com.bookinn.backend.repository.AmenityRepository;
 import com.bookinn.backend.repository.ListingRepository;
 import com.bookinn.backend.repository.UserRepository;
+import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +34,9 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class ListingService {
+
+  /** Fixed page size for public search; keeping it server-side avoids abuse via a huge size. */
+  private static final int SEARCH_PAGE_SIZE = 12;
 
   private final ListingRepository listingRepository;
   private final AmenityRepository amenityRepository;
@@ -169,6 +178,39 @@ public class ListingService {
             .orElseThrow(() -> new ListingNotFoundException("Listing not found: " + listingId));
     return ListingResponse.from(listing);
   }
+
+  /**
+   * Public listing search: ACTIVE listings filtered by an optional city prefix and an
+   optional date
+   * window. When both dates are supplied, listings with an overlapping CONFIRMED booking are
+   hidden;
+   * supplying only one date, or a {@code checkIn} not before {@code checkOut}, is a 400.
+   *
+   * @param city city prefix, may be {@code null} or blank for no city filter
+   * @param checkIn requested check-in, or {@code null}
+   * @param checkOut requested check-out, or {@code null}
+   * @param page zero-based page index
+   * @return a page of listing summaries
+   */
+  @Transactional(readOnly = true)
+  public PageResponse<ListingSummaryResponse> search(
+          String city, LocalDate checkIn, LocalDate checkOut, int page) {
+    String cityFilter = (city == null || city.isBlank()) ? "" : city.strip();
+    Pageable pageable = PageRequest.of(Math.max(page, 0), SEARCH_PAGE_SIZE);
+
+    Page<Listing> results;
+    if (checkIn == null && checkOut == null) {
+      results = listingRepository.searchActive(cityFilter, pageable);
+    } else {
+      if (checkIn == null || checkOut == null || !checkIn.isBefore(checkOut)) {
+        throw new InvalidDateRangeException(
+                "checkIn and checkOut must both be provided, with checkIn before checkOut");
+      }
+      results = listingRepository.searchAvailable(cityFilter, checkIn, checkOut, pageable);
+    }
+    return PageResponse.from(results.map(ListingSummaryResponse::from));
+  }
+
 
   /**
    * Returns one of the host's own listings in full detail, regardless of status, for the edit form.
