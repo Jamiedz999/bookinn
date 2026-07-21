@@ -120,6 +120,7 @@ function BookingPanel({ listingId, maxGuests }: { listingId: number; maxGuests: 
   }
 
   const datesChosen = Boolean(checkIn) && Boolean(checkOut)
+  const guestsValid = guestCount >= 1 && guestCount <= maxGuests
 
   if (!user) {
     return (
@@ -180,7 +181,7 @@ function BookingPanel({ listingId, maxGuests }: { listingId: number; maxGuests: 
         />
         <Button
           variant="outlined"
-          disabled={!datesChosen || quoteMutation.isPending}
+          disabled={!datesChosen || !guestsValid || quoteMutation.isPending}
           onClick={() => quoteMutation.mutate()}
         >
           Get price
@@ -208,7 +209,7 @@ function BookingPanel({ listingId, maxGuests }: { listingId: number; maxGuests: 
           <Button
             variant="contained"
             sx={{ mt: 2 }}
-            disabled={bookMutation.isPending}
+            disabled={!guestsValid || bookMutation.isPending}
             onClick={() => bookMutation.mutate()}
           >
             Book for {formatPrice(quote.totalPrice)}
