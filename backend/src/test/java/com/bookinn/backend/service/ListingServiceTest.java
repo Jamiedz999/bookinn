@@ -3,6 +3,7 @@ package com.bookinn.backend.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.bookinn.backend.domain.Amenity;
@@ -15,13 +16,16 @@ import com.bookinn.backend.dto.CreateListingRequest;
 import com.bookinn.backend.dto.ListingResponse;
 import com.bookinn.backend.dto.ListingStatusRequest;
 import com.bookinn.backend.dto.ListingSummaryResponse;
+import com.bookinn.backend.dto.PageResponse;
 import com.bookinn.backend.dto.UpdateListingRequest;
 import com.bookinn.backend.exception.InvalidCredentialsException;
+import com.bookinn.backend.exception.InvalidDateRangeException;
 import com.bookinn.backend.exception.ListingNotFoundException;
 import com.bookinn.backend.repository.AmenityRepository;
 import com.bookinn.backend.repository.ListingRepository;
 import com.bookinn.backend.repository.UserRepository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +35,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 
 /** Unit tests for {@link ListingService}: field mapping, amenity/photo round-trip, ownership. */
@@ -275,5 +282,66 @@ class ListingServiceTest {
 
     assertThatThrownBy(() -> service.getOwnedDetail(HOST_ID, 5L))
         .isInstanceOf(AccessDeniedException.class);
+  }
+
+  // --- search -------------------------------------------------------------
+
+  @Test
+  void searchWithoutDatesQueriesActiveListingsAndMapsPageMetadata() {
+    when(listingRepository.searchActive(eq(""), any(Pageable.class)))
+        .thenReturn(
+            new PageImpl<>(
+                List.of(existingListing(1L, HOST_ID, ListingStatus.ACTIVE)),
+                PageRequest.of(0, 12),
+                1));
+
+    PageResponse<ListingSummaryResponse> result = service.search(null, null, null, 0);
+
+    assertThat(result.content()).extracting(ListingSummaryResponse::id).containsExactly(1L);
+    assertThat(result.page()).isZero();
+    assertThat(result.size()).isEqualTo(12);
+    assertThat(result.totalElements()).isEqualTo(1);
+    assertThat(result.totalPages()).isEqualTo(1);
+  }
+
+  @Test
+  void searchTrimsCityBeforeQuerying() {
+    when(listingRepository.searchActive(eq("Lisbon"), any(Pageable.class)))
+        .thenReturn(new PageImpl<>(List.of(existingListing(1L, HOST_ID, ListingStatus.ACTIVE))));
+
+    PageResponse<ListingSummaryResponse> result = service.search("  Lisbon  ", null, null, 0);
+
+    assertThat(result.content()).hasSize(1);
+  }
+
+  @Test
+  void searchWithBothDatesQueriesAvailability() {
+    LocalDate checkIn = LocalDate.of(2026, 8, 1);
+    LocalDate checkOut = LocalDate.of(2026, 8, 5);
+    when(listingRepository.searchAvailable(eq(""), eq(checkIn), eq(checkOut), any(Pageable.class)))
+        .thenReturn(new PageImpl<>(List.of(existingListing(2L, HOST_ID, ListingStatus.ACTIVE))));
+
+    PageResponse<ListingSummaryResponse> result = service.search(null, checkIn, checkOut, 0);
+
+    assertThat(result.content()).extracting(ListingSummaryResponse::id).containsExactly(2L);
+  }
+
+  @Test
+  void searchWithOnlyCheckInIsRejected() {
+    assertThatThrownBy(() -> service.search(null, LocalDate.of(2026, 8, 1), null, 0))
+        .isInstanceOf(InvalidDateRangeException.class);
+  }
+
+  @Test
+  void searchWithOnlyCheckOutIsRejected() {
+    assertThatThrownBy(() -> service.search(null, null, LocalDate.of(2026, 8, 5), 0))
+        .isInstanceOf(InvalidDateRangeException.class);
+  }
+
+  @Test
+  void searchWithCheckOutNotAfterCheckInIsRejected() {
+    LocalDate sameDay = LocalDate.of(2026, 8, 1);
+    assertThatThrownBy(() -> service.search(null, sameDay, sameDay, 0))
+        .isInstanceOf(InvalidDateRangeException.class);
   }
 }

@@ -67,6 +67,21 @@ public class GlobalExceptionHandler {
     return build(HttpStatus.FORBIDDEN, "Access denied", request);
   }
 
+
+  /**
+   * Handles inconsistent search date parameters.
+   *
+   * @param ex the raised exception
+   * @param request the failing request
+   * @return a 400 response
+   */
+  @ExceptionHandler(InvalidDateRangeException.class)
+  public ResponseEntity<ApiError> handleInvalidDateRange(
+          InvalidDateRangeException ex, HttpServletRequest request) {
+    return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+  }
+
+
   /**
    * Handles bean-validation failures on request bodies.
    *

@@ -4,11 +4,14 @@ import com.bookinn.backend.dto.CreateListingRequest;
 import com.bookinn.backend.dto.ListingResponse;
 import com.bookinn.backend.dto.ListingStatusRequest;
 import com.bookinn.backend.dto.ListingSummaryResponse;
+import com.bookinn.backend.dto.PageResponse;
 import com.bookinn.backend.dto.UpdateListingRequest;
 import com.bookinn.backend.security.AuthenticatedUser;
 import com.bookinn.backend.service.ListingService;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -112,6 +116,32 @@ public class ListingController {
       @AuthenticationPrincipal AuthenticatedUser principal) {
     return listingService.getHostListings(principal.id());
   }
+
+
+  /**
+   * Public listing search. All parameters are optional: no city means "any city", and the
+   date
+   * window is applied only when both {@code checkIn} and {@code checkOut} are present.
+   *
+   * @param city case-insensitive city prefix, or absent
+   * @param checkIn requested check-in (ISO date), or absent
+   * @param checkOut requested check-out (ISO date), or absent
+   * @param page zero-based page index
+   * @return a page of matching listing summaries
+   */
+  @GetMapping("/api/listings")
+  public PageResponse<ListingSummaryResponse> search(
+          @RequestParam(required = false) String city,
+          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate checkIn,
+          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate checkOut,
+          @RequestParam(defaultValue = "0") int page) {
+    return listingService.search(city, checkIn, checkOut, page);
+  }
+
+
+
 
   /**
    * Returns one of the authenticated host's own listings in full detail, regardless of status, so

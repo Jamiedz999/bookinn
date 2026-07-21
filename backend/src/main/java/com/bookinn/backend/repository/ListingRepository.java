@@ -1,8 +1,13 @@
 package com.bookinn.backend.repository;
 
 import com.bookinn.backend.domain.Listing;
+import java.time.LocalDate;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /** Data access for {@link Listing} properties. */
 public interface ListingRepository extends JpaRepository<Listing, Long> {
@@ -14,4 +19,63 @@ public interface ListingRepository extends JpaRepository<Listing, Long> {
    * @return the host's listings
    */
   List<Listing> findByHostIdOrderByCreatedAtDesc(Long hostId);
+
+
+  /**
+   * Public search without a date window: ACTIVE listings, optionally filtered by a
+   case-insensitive
+   * city prefix. Pass an empty string for {@code city} to skip the city filter (avoids
+   binding a
+   * nullable parameter into a native query).
+   *
+   * @param city city prefix, or {@code ""} for no city filter
+   * @param pageable page request (page + size)
+   * @return the matching page, newest first
+   */
+  @Query(
+          value =
+                  "SELECT * FROM listing l WHERE l.status = 'ACTIVE' "
+                          + "AND (:city = '' OR LOWER(l.city) LIKE LOWER(CONCAT(:city, '%'))) "
+                          + "ORDER BY l.created_at DESC",
+          countQuery =
+                  "SELECT COUNT(*) FROM listing l WHERE l.status = 'ACTIVE' "
+                          + "AND (:city = '' OR LOWER(l.city) LIKE LOWER(CONCAT(:city, '%')))",
+          nativeQuery = true)
+  Page<Listing> searchActive(@Param("city") String city, Pageable pageable);
+
+  /**
+   * Public search with a date window: ACTIVE listings matching the city prefix that have no
+   * overlapping CONFIRMED booking. Overlap uses half-open intervals {@code [checkIn,
+  checkOut)}, so
+   * an adjacent booking (checkout == new check-in) does not block. References the {@code
+  booking}
+   * table directly via native SQL because the Booking entity is introduced in M4.
+   *
+   * @param city city prefix, or {@code ""} for no city filter
+   * @param checkIn requested check-in (inclusive)
+   * @param checkOut requested check-out (exclusive)
+   * @param pageable page request (page + size)
+   * @return the available matching page, newest first
+   */
+  @Query(
+          value =
+                  "SELECT * FROM listing l WHERE l.status = 'ACTIVE' "
+                          + "AND (:city = '' OR LOWER(l.city) LIKE LOWER(CONCAT(:city, '%'))) "
+                          + "AND NOT EXISTS (SELECT 1 FROM booking b WHERE b.listing_id = l.id "
+                          + "AND b.status = 'CONFIRMED' "
+                          + "AND b.check_in < :checkOut AND b.check_out > :checkIn) "
+                          + "ORDER BY l.created_at DESC",
+          countQuery =
+                  "SELECT COUNT(*) FROM listing l WHERE l.status = 'ACTIVE' "
+                          + "AND (:city = '' OR LOWER(l.city) LIKE LOWER(CONCAT(:city, '%'))) "
+                          + "AND NOT EXISTS (SELECT 1 FROM booking b WHERE b.listing_id = l.id "
+                          + "AND b.status = 'CONFIRMED' "
+                          + "AND b.check_in < :checkOut AND b.check_out > :checkIn)",
+          nativeQuery = true)
+  Page<Listing> searchAvailable(
+          @Param("city") String city,
+          @Param("checkIn") LocalDate checkIn,
+          @Param("checkOut") LocalDate checkOut,
+          Pageable pageable);
 }
+
