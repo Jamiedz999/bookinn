@@ -1,16 +1,33 @@
 package com.bookinn.backend.repository;
 
 import com.bookinn.backend.domain.Listing;
+import jakarta.persistence.LockModeType;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /** Data access for {@link Listing} properties. */
 public interface ListingRepository extends JpaRepository<Listing, Long> {
+
+  /**
+   * Loads a listing for update, taking a row-level pessimistic write lock ({@code SELECT ... FOR
+   * UPDATE}). This is the single-line concurrency guard from PRD decision D4: the booking
+   * transaction locks the listing row first, so two guests racing for the same dates are serialised
+   * — the second waits here until the first commits, then sees its CONFIRMED booking in the overlap
+   * check and is rejected. Must be called inside a transaction.
+   *
+   * @param id the listing id
+   * @return the locked listing, if it exists
+   */
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT l FROM Listing l WHERE l.id = :id")
+  Optional<Listing> findByIdForUpdate(@Param("id") Long id);
 
   /**
    * Lists a host's own properties, newest first.

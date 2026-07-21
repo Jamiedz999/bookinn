@@ -41,7 +41,7 @@ public class SecurityConfig {
   };
 
   private static final String[] PUBLIC_GET_PATHS = {
-    "/api/listings", "/api/listings/*", "/api/amenities"
+    "/api/listings", "/api/listings/*", "/api/listings/*/quote", "/api/amenities"
   };
 
   /**

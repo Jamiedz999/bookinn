@@ -81,6 +81,37 @@ public class GlobalExceptionHandler {
     return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
   }
 
+  /**
+   * Handles a semantically invalid booking request (e.g. guest count over capacity).
+   *
+   * @param ex the raised exception
+   * @param request the failing request
+   * @return a 400 response
+   */
+  @ExceptionHandler(InvalidBookingRequestException.class)
+  public ResponseEntity<ApiError> handleInvalidBookingRequest(
+      InvalidBookingRequestException ex, HttpServletRequest request) {
+    return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+  }
+
+  /**
+   * Handles a booking conflict — an overlapping booking, a cancellation outside the 48h window, or
+   * an illegal state-machine transition. All are business conflicts served as 409 (PRD §5).
+   *
+   * @param ex the raised exception
+   * @param request the failing request
+   * @return a 409 response
+   */
+  @ExceptionHandler({
+    BookingConflictException.class,
+    CancellationNotAllowedException.class,
+    IllegalBookingTransitionException.class
+  })
+  public ResponseEntity<ApiError> handleBookingConflict(
+      RuntimeException ex, HttpServletRequest request) {
+    return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+  }
+
 
   /**
    * Handles bean-validation failures on request bodies.
