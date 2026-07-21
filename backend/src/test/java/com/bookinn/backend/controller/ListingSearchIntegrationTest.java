@@ -103,6 +103,30 @@ class ListingSearchIntegrationTest extends AbstractIntegrationTest {
   }
 
   @Test
+  void resultsAreSplitAcrossPagesOfTwelve() throws Exception {
+    long host = insertHost("search-paging@example.com");
+    for (int i = 0; i < 13; i++) {
+      insertListing(host, "Trondheim loft " + i, "Trondheim", "ACTIVE");
+    }
+
+    // Page 0: full page of 12, with totals reflecting all 13 matches across 2 pages.
+    mockMvc
+        .perform(get("/api/listings?city=Trondheim&page=0"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.page").value(0))
+        .andExpect(jsonPath("$.content.length()").value(12))
+        .andExpect(jsonPath("$.totalElements").value(13))
+        .andExpect(jsonPath("$.totalPages").value(2));
+
+    // Page 1: the remaining single listing.
+    mockMvc
+        .perform(get("/api/listings?city=Trondheim&page=1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.page").value(1))
+        .andExpect(jsonPath("$.content.length()").value(1));
+  }
+
+  @Test
   void cityFilterMatchesCaseInsensitivePrefixOnly() throws Exception {
     long host = insertHost("search-city@example.com");
     long id = insertListing(host, "City prefix loft", "Barcelona", "ACTIVE");

@@ -35,6 +35,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ListingService {
 
+  /** Fixed page size for public search; keeping it server-side avoids abuse via a huge size. */
+  private static final int SEARCH_PAGE_SIZE = 12;
+
   private final ListingRepository listingRepository;
   private final AmenityRepository amenityRepository;
   private final UserRepository userRepository;
@@ -175,11 +178,6 @@ public class ListingService {
             .orElseThrow(() -> new ListingNotFoundException("Listing not found: " + listingId));
     return ListingResponse.from(listing);
   }
-
-
-  /** Fixed page size for public search; keeping it server-side avoids abuse via a huge size.
-   */
-  private static final int SEARCH_PAGE_SIZE = 12;
 
   /**
    * Public listing search: ACTIVE listings filtered by an optional city prefix and an
