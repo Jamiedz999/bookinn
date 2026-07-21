@@ -127,3 +127,28 @@ export interface Booking {
   createdAt: string
   cancelledAt: string | null
 }
+
+/** The three host-dashboard KPIs (mirrors backend DashboardSummaryResponse). */
+export interface DashboardSummary {
+  currentMonthRevenue: number
+  totalBookings: number
+  upcomingCheckIns: number
+}
+
+/** One point on the 12-month revenue-trend line (mirrors MonthlyRevenueResponse). */
+export interface MonthlyRevenue {
+  month: string
+  revenue: number
+}
+
+/**
+ * Current-month occupancy for one listing (mirrors ListingOccupancyResponse). `rate` is
+ * `bookedNights / daysInMonth`, between 0 and 1.
+ */
+export interface ListingOccupancy {
+  listingId: number
+  listingTitle: string
+  bookedNights: number
+  daysInMonth: number
+  rate: number
+}

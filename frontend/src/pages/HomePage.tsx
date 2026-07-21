@@ -20,6 +20,11 @@ export function HomePage() {
           <Button component={RouterLink} to="/host/listings" variant="contained">
             My listings
           </Button>
+          {user?.roles.includes('HOST') && (
+            <Button component={RouterLink} to="/host/dashboard" variant="outlined">
+              Dashboard
+            </Button>
+          )}
           <Button variant="outlined" onClick={() => logout()}>
             Log out
           </Button>
