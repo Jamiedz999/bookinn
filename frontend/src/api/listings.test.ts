@@ -7,6 +7,7 @@ import {
   getHostListing,
   getHostListings,
   getListing,
+  searchListings,
   updateListing,
 } from './listings'
 import type { ListingInput } from './types'
@@ -37,6 +38,47 @@ const input: ListingInput = {
 }
 
 describe('listings api', () => {
+  it('searchListings returns the page and forwards city and date params', async () => {
+    let requestedUrl = ''
+    server.use(
+      http.get('/api/listings', ({ request }) => {
+        requestedUrl = request.url
+        return HttpResponse.json({
+          content: [
+            { id: 1, title: 'A', city: 'Porto', pricePerNight: 90, status: 'ACTIVE', coverPhotoUrl: null },
+          ],
+          page: 0,
+          size: 12,
+          totalElements: 1,
+          totalPages: 1,
+        })
+      }),
+    )
+
+    const result = await searchListings({ city: 'Porto', checkIn: '2026-09-10', checkOut: '2026-09-12' })
+
+    expect(result.content[0].title).toBe('A')
+    expect(result.totalElements).toBe(1)
+    const query = new URL(requestedUrl).searchParams
+    expect(query.get('city')).toBe('Porto')
+    expect(query.get('checkIn')).toBe('2026-09-10')
+    expect(query.get('checkOut')).toBe('2026-09-12')
+  })
+
+  it('searchListings omits undefined params', async () => {
+    let requestedUrl = ''
+    server.use(
+      http.get('/api/listings', ({ request }) => {
+        requestedUrl = request.url
+        return HttpResponse.json({ content: [], page: 0, size: 12, totalElements: 0, totalPages: 0 })
+      }),
+    )
+
+    await searchListings({})
+
+    expect(new URL(requestedUrl).search).toBe('')
+  })
+
   it('getListing returns the listing detail', async () => {
     server.use(http.get('/api/listings/3', () => HttpResponse.json(listing)))
 
