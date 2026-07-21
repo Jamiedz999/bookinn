@@ -1,16 +1,23 @@
-import { useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { Link as RouterLink, useParams } from 'react-router-dom'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   Alert,
   Box,
+  Button,
   Chip,
   Container,
+  Divider,
   ImageList,
   ImageListItem,
+  Link,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material'
+import { createBooking, getQuote } from '../api/bookings'
 import { getListing } from '../api/listings'
+import { useAuth } from '../auth/useAuth'
 
 function formatPrice(price: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price)
@@ -84,7 +91,131 @@ export function ListingDetailPage() {
             </Stack>
           </Box>
         )}
+
+        <Divider sx={{ my: 4 }} />
+        <BookingPanel listingId={listing.id} maxGuests={listing.maxGuests} />
       </Box>
     </Container>
+  )
+}
+
+/** Date picker → quote → book flow. Gated on being logged in. */
+function BookingPanel({ listingId, maxGuests }: { listingId: number; maxGuests: number }) {
+  const { user } = useAuth()
+  const [checkIn, setCheckIn] = useState('')
+  const [checkOut, setCheckOut] = useState('')
+  const [guestCount, setGuestCount] = useState(1)
+
+  const quoteMutation = useMutation({
+    mutationFn: () => getQuote(listingId, checkIn, checkOut),
+  })
+  const bookMutation = useMutation({
+    mutationFn: () => createBooking({ listingId, checkIn, checkOut, guestCount }),
+  })
+
+  // Any change to the dates invalidates a previous quote/booking outcome.
+  function resetOutcomes() {
+    quoteMutation.reset()
+    bookMutation.reset()
+  }
+
+  const datesChosen = Boolean(checkIn) && Boolean(checkOut)
+  const guestsValid = guestCount >= 1 && guestCount <= maxGuests
+
+  if (!user) {
+    return (
+      <Alert severity="info">
+        <Link component={RouterLink} to="/login">
+          Log in
+        </Link>{' '}
+        to book this place.
+      </Alert>
+    )
+  }
+
+  if (bookMutation.isSuccess) {
+    return (
+      <Alert severity="success">
+        Booking confirmed!{' '}
+        <Link component={RouterLink} to="/bookings/my">
+          View my bookings
+        </Link>
+      </Alert>
+    )
+  }
+
+  const quote = quoteMutation.data
+
+  return (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        Book your stay
+      </Typography>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: 'center' }}>
+        <TextField
+          label="Check-in"
+          type="date"
+          value={checkIn}
+          onChange={(e) => {
+            setCheckIn(e.target.value)
+            resetOutcomes()
+          }}
+          slotProps={{ inputLabel: { shrink: true } }}
+        />
+        <TextField
+          label="Check-out"
+          type="date"
+          value={checkOut}
+          onChange={(e) => {
+            setCheckOut(e.target.value)
+            resetOutcomes()
+          }}
+          slotProps={{ inputLabel: { shrink: true } }}
+        />
+        <TextField
+          label="Guests"
+          type="number"
+          value={guestCount}
+          onChange={(e) => setGuestCount(Number(e.target.value))}
+          slotProps={{ htmlInput: { min: 1, max: maxGuests } }}
+        />
+        <Button
+          variant="outlined"
+          disabled={!datesChosen || !guestsValid || quoteMutation.isPending}
+          onClick={() => quoteMutation.mutate()}
+        >
+          Get price
+        </Button>
+      </Stack>
+
+      {quoteMutation.isError && (
+        <Alert severity="warning" sx={{ mt: 2 }}>
+          These dates aren't available. Try different ones.
+        </Alert>
+      )}
+
+      {quote && (
+        <Box sx={{ mt: 2 }}>
+          <Typography>
+            {quote.nights} night{quote.nights === 1 ? '' : 's'} ×{' '}
+            {formatPrice(quote.pricePerNight)} ={' '}
+            <strong>{formatPrice(quote.totalPrice)}</strong>
+          </Typography>
+          {bookMutation.isError && (
+            <Alert severity="error" sx={{ mt: 1 }}>
+              Could not complete the booking — the dates may have just been taken.
+            </Alert>
+          )}
+          <Button
+            variant="contained"
+            sx={{ mt: 2 }}
+            disabled={!guestsValid || bookMutation.isPending}
+            onClick={() => bookMutation.mutate()}
+          >
+            Book for {formatPrice(quote.totalPrice)}
+          </Button>
+        </Box>
+      )}
+    </Box>
   )
 }

@@ -84,3 +84,46 @@ export interface ListingInput {
   amenityIds: number[]
   photoUrls: string[]
 }
+
+export type BookingStatus = 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'
+
+/** Price preview for a prospective stay (mirrors backend QuoteResponse). */
+export interface Quote {
+  listingId: number
+  checkIn: string
+  checkOut: string
+  nights: number
+  pricePerNight: number
+  totalPrice: number
+}
+
+/** Payload to create a booking (mirrors backend CreateBookingRequest). */
+export interface CreateBookingRequest {
+  listingId: number
+  checkIn: string
+  checkOut: string
+  guestCount: number
+}
+
+/**
+ * A booking as shown on both the guest's "my bookings" and host's "bookings received" pages (mirrors
+ * backend BookingResponse). {@code cancellable} is computed server-side against the 48h policy.
+ */
+export interface Booking {
+  id: number
+  listingId: number
+  listingTitle: string
+  listingCity: string
+  coverPhotoUrl: string | null
+  guestId: number
+  guestName: string
+  checkIn: string
+  checkOut: string
+  nights: number
+  guestCount: number
+  totalPrice: number
+  status: BookingStatus
+  cancellable: boolean
+  createdAt: string
+  cancelledAt: string | null
+}

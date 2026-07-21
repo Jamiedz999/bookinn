@@ -5,8 +5,10 @@ import com.bookinn.backend.dto.ListingResponse;
 import com.bookinn.backend.dto.ListingStatusRequest;
 import com.bookinn.backend.dto.ListingSummaryResponse;
 import com.bookinn.backend.dto.PageResponse;
+import com.bookinn.backend.dto.QuoteResponse;
 import com.bookinn.backend.dto.UpdateListingRequest;
 import com.bookinn.backend.security.AuthenticatedUser;
+import com.bookinn.backend.service.BookingService;
 import com.bookinn.backend.service.ListingService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -33,14 +35,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class ListingController {
 
   private final ListingService listingService;
+  private final BookingService bookingService;
 
   /**
    * Creates the controller.
    *
    * @param listingService listing lifecycle operations
+   * @param bookingService booking operations, for the public quote endpoint
    */
-  public ListingController(ListingService listingService) {
+  public ListingController(ListingService listingService, BookingService bookingService) {
     this.listingService = listingService;
+    this.bookingService = bookingService;
   }
 
   /**
@@ -102,6 +107,23 @@ public class ListingController {
   @GetMapping("/api/listings/{id}")
   public ListingResponse detail(@PathVariable Long id) {
     return listingService.getPublicDetail(id);
+  }
+
+  /**
+   * Prices a prospective stay for the public detail page's date picker. Both dates are required; an
+   * unavailable range is a 409, an invalid range a 400, a missing/inactive listing a 404.
+   *
+   * @param id id of the listing to quote
+   * @param checkIn requested check-in (ISO date)
+   * @param checkOut requested check-out (ISO date)
+   * @return the price breakdown
+   */
+  @GetMapping("/api/listings/{id}/quote")
+  public QuoteResponse quote(
+      @PathVariable Long id,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkIn,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkOut) {
+    return bookingService.quote(id, checkIn, checkOut);
   }
 
   /**
