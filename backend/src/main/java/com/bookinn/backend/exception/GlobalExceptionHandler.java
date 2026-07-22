@@ -67,6 +67,19 @@ public class GlobalExceptionHandler {
     return build(HttpStatus.FORBIDDEN, "Access denied", request);
   }
 
+  /**
+   * Handles a mutation attempt against a protected demo account (D7).
+   *
+   * @param ex the raised exception
+   * @param request the failing request
+   * @return a 403 response
+   */
+  @ExceptionHandler(DemoAccountProtectedException.class)
+  public ResponseEntity<ApiError> handleDemoProtected(
+      DemoAccountProtectedException ex, HttpServletRequest request) {
+    return build(HttpStatus.FORBIDDEN, ex.getMessage(), request);
+  }
+
 
   /**
    * Handles inconsistent search date parameters.

@@ -11,7 +11,6 @@ import com.bookinn.backend.repository.UserRepository;
 import com.bookinn.backend.security.JwtService;
 import java.util.EnumSet;
 import java.util.Set;
-import java.util.UUID;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
@@ -23,9 +22,6 @@ import org.springframework.util.StringUtils;
 /** Orchestrates registration, login, token refresh, logout, and one-click demo login. */
 @Service
 public class AuthService {
-
-  private static final String DEMO_HOST_EMAIL = "demo-host@bookinn.app";
-  private static final String DEMO_GUEST_EMAIL = "demo-guest@bookinn.app";
 
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
@@ -136,18 +132,18 @@ public class AuthService {
    */
   @Transactional
   public AuthResult demoLogin(Role role) {
-    String email = role == Role.HOST ? DEMO_HOST_EMAIL : DEMO_GUEST_EMAIL;
+    String email = role == Role.HOST ? DemoAccounts.HOST_EMAIL : DemoAccounts.GUEST_EMAIL;
     User user = userRepository.findByEmail(email).orElseGet(() -> createDemoUser(role));
     return issueTokens(user);
   }
 
   private User createDemoUser(Role role) {
     boolean host = role == Role.HOST;
-    String email = host ? DEMO_HOST_EMAIL : DEMO_GUEST_EMAIL;
+    String email = host ? DemoAccounts.HOST_EMAIL : DemoAccounts.GUEST_EMAIL;
     String name = host ? "Demo Host" : "Demo Guest";
     Set<Role> roles = host ? EnumSet.of(Role.GUEST, Role.HOST) : EnumSet.of(Role.GUEST);
     User user =
-        new User(email, passwordEncoder.encode(UUID.randomUUID().toString()), name, true, roles);
+        new User(email, passwordEncoder.encode(DemoAccounts.PASSWORD), name, true, roles);
     return userRepository.save(user);
   }
 

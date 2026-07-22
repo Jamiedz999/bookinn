@@ -19,6 +19,17 @@ A full-stack vacation rental booking platform inspired by Airbnb — built to wo
 - Host dashboard with real-time booking and revenue analytics
 - Containerized deployment to AWS behind a CI/CD pipeline that enforces test coverage gates
 
+## Demo accounts
+
+The public sandbox seeds two protected demo personas (one-click "Try as host / guest" on the login
+page, or sign in with the form). Both are wiped and reseeded nightly, so anything you change is
+temporary — and the accounts themselves cannot change their password or email.
+
+| Role  | Email                   | Password   |
+|-------|-------------------------|------------|
+| Host  | `demo-host@bookinn.app` | `demo1234` |
+| Guest | `demo-guest@bookinn.app`| `demo1234` |
+
 ## Design decisions
 
 Architecture and design trade-offs are recorded as ADRs in [`docs/adr/`](docs/adr/).
