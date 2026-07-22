@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import CssBaseline from '@mui/material/CssBaseline'
 import { AuthProvider } from './auth/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { DashboardPage } from './pages/DashboardPage'
 import { HomePage } from './pages/HomePage'
 import { HostBookingsPage } from './pages/HostBookingsPage'
 import { HostListingsPage } from './pages/HostListingsPage'
@@ -35,6 +36,7 @@ function App() {
               <Route path="/host/listings/new" element={<ListingFormPage />} />
               <Route path="/host/listings/:id/edit" element={<ListingFormPage />} />
               <Route path="/host/bookings" element={<HostBookingsPage />} />
+              <Route path="/host/dashboard" element={<DashboardPage />} />
             </Route>
           </Routes>
         </BrowserRouter>
