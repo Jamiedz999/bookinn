@@ -1,0 +1,41 @@
+# Production stack for the EC2 (t4g.small / arm64) host.
+#
+#   frontend (nginx) — the only service published to the host (port 80 → public IP).
+#   backend  (Spring Boot) — internal only; reachable by nginx over the compose network, never
+#                            published to the host, so /actuator is not exposed to the internet.
+#   RDS MySQL — deliberately NOT in this file. It is a managed AWS service reached over the private
+#               VPC network via BOOKINN_DB_URL.
+#
+# Images are pulled from ECR. All secrets/config come from a host-only .env (see .env.example);
+# nothing sensitive is committed. Run from this directory:
+#   docker compose -f docker-compose.prod.yml --env-file .env pull
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d
+services:
+  backend:
+    image: ${ECR_REGISTRY}/bookinn-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      BOOKINN_DB_URL: ${BOOKINN_DB_URL}
+      BOOKINN_DB_USERNAME: ${BOOKINN_DB_USERNAME}
+      BOOKINN_DB_PASSWORD: ${BOOKINN_DB_PASSWORD}
+      BOOKINN_JWT_SECRET: ${BOOKINN_JWT_SECRET}
+    # Internal to the compose network only — no host port mapping.
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # Generous grace period: JVM boot + Flyway migrations + demo seeding on first start.
+      start_period: 90s
+
+  frontend:
+    image: ${ECR_REGISTRY}/bookinn-frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"

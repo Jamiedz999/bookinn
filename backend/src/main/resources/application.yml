@@ -16,6 +16,17 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+# Expose only the health probe (used by the container healthcheck), nothing else. Never proxied
+# publicly by nginx, so metrics/env/etc. stay off the wire entirely.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
 bookinn:
   jwt:
     # Overridden by BOOKINN_JWT_SECRET in deployed environments (see M7). Must be >= 32 bytes for HS256.

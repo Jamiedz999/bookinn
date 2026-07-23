@@ -1,0 +1,17 @@
+# Production profile — activated with SPRING_PROFILES_ACTIVE=prod (set in deploy/docker-compose.prod.yml).
+# All secrets come from the host .env via environment variables; nothing sensitive is committed here.
+spring:
+  datasource:
+    url: ${BOOKINN_DB_URL}
+    username: ${BOOKINN_DB_USERNAME}
+    password: ${BOOKINN_DB_PASSWORD}
+
+bookinn:
+  # Turn on the public demo sandbox: seed-if-empty on startup + nightly reset + one-click demo login.
+  demo:
+    enabled: true
+  auth:
+    # Served over plain HTTP behind the public IP (no HTTPS in scope), so the refresh cookie cannot be
+    # Secure-flagged or the browser would drop it. It stays httpOnly + SameSite and first-party via the
+    # nginx /api reverse proxy.
+    cookie-secure: false

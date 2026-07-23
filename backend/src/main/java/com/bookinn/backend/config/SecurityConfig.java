@@ -37,7 +37,11 @@ public class SecurityConfig {
     "/swagger-ui.html",
     "/swagger-ui/**",
     "/v3/api-docs",
-    "/v3/api-docs/**"
+    "/v3/api-docs/**",
+    // Health probe for the container healthcheck. Only /health is exposed (see application.yml);
+    // nginx does not reverse-proxy /actuator, so it stays internal to the compose network and is
+    // never reachable from the public internet.
+    "/actuator/health"
   };
 
   private static final String[] PUBLIC_GET_PATHS = {

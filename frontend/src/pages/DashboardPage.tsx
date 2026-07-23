@@ -78,7 +78,7 @@ export function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                 <Line type="monotone" dataKey="revenue" stroke="#1976d2" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
@@ -104,7 +104,7 @@ export function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" domain={[0, 1]} tickFormatter={formatPercent} />
                 <YAxis type="category" dataKey="listingTitle" width={140} />
-                <Tooltip formatter={(value: number) => formatPercent(value)} />
+                <Tooltip formatter={(value) => formatPercent(Number(value))} />
                 <Bar dataKey="rate" fill="#2e7d32" />
               </BarChart>
             </ResponsiveContainer>
