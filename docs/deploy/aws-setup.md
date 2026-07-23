@@ -11,7 +11,7 @@ One-time setup to deploy BookInn to AWS: **EC2 (t4g.small / arm64)** running the
 Shell variables used throughout (set these once in your local shell):
 
 ```bash
-export AWS_REGION=eu-west-2                 # London
+export AWS_REGION=us-east-1                 # N. Virginia
 export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 export ECR=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
 export MY_IP=$(curl -s https://checkip.amazonaws.com)/32   # your current public IP, for SSH
