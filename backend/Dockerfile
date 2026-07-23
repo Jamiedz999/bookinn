@@ -38,4 +38,5 @@ USER app
 EXPOSE 8080
 # Cap heap relative to the container's memory (t4g.small = 2 GB) so the JVM stays inside its limit.
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0"
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
+# exec so the JVM becomes PID 1 and receives SIGTERM directly (graceful shutdown, no 10s kill wait).
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]
