@@ -41,8 +41,8 @@ The auto-stop **Budget Action** needs the EC2 instance ID, so it is configured i
 ## 2. ECR — two image repos
 
 ```bash
-aws ecr create-repository --repository-name bookinn-backend  --region "$AWS_REGION"
-aws ecr create-repository --repository-name bookinn-frontend --region "$AWS_REGION"
+aws ecr create-repository --repository-name bookinn/backend  --region "$AWS_REGION"
+aws ecr create-repository --repository-name bookinn/frontend --region "$AWS_REGION"
 ```
 
 ## 3. Security groups (least privilege)
@@ -155,8 +155,8 @@ Console → **Budgets → your $10 budget → Add action** → action type **Sto
 aws ecr get-login-password --region "$AWS_REGION" \
   | docker login --username AWS --password-stdin "$ECR"
 
-docker buildx build --platform linux/arm64 -t "$ECR/bookinn-backend:latest"  --push ./backend
-docker buildx build --platform linux/arm64 -t "$ECR/bookinn-frontend:latest" --push ./frontend
+docker buildx build --platform linux/arm64 -t "$ECR/bookinn/backend:latest"  --push ./backend
+docker buildx build --platform linux/arm64 -t "$ECR/bookinn/frontend:latest" --push ./frontend
 ```
 
 ## 8. Configure & start the stack on EC2
@@ -175,7 +175,15 @@ sudo mkdir -p /usr/libexec/docker/cli-plugins && sudo curl -sSL \
 sudo mkdir -p /opt/bookinn && sudo chown ec2-user /opt/bookinn && cd /opt/bookinn
 ```
 
-Copy `deploy/docker-compose.prod.yml` and `deploy/.env.example` to `/opt/bookinn/`, then:
+Copy the deploy files up **from your laptop** (new terminal, in the repo root — note `.env.example`
+is a dotfile, so `ls -a` to see it landed):
+
+```bash
+scp -i ~/.ssh/bookinn.pem deploy/docker-compose.prod.yml deploy/.env.example \
+    ec2-user@<PUBLIC_IP>:/opt/bookinn/
+```
+
+Then back on the host:
 
 ```bash
 cp .env.example .env

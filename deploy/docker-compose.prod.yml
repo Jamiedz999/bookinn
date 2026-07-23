@@ -12,7 +12,7 @@
 #   docker compose -f docker-compose.prod.yml --env-file .env up -d
 services:
   backend:
-    image: ${ECR_REGISTRY}/bookinn-backend:${IMAGE_TAG:-latest}
+    image: ${ECR_REGISTRY}/bookinn/backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod
@@ -32,7 +32,7 @@ services:
       start_period: 90s
 
   frontend:
-    image: ${ECR_REGISTRY}/bookinn-frontend:${IMAGE_TAG:-latest}
+    image: ${ECR_REGISTRY}/bookinn/frontend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       backend:
