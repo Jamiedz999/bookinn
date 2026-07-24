@@ -1,0 +1,9 @@
+# Never copy local installs or build output into the context — npm ci rebuilds them in the image.
+node_modules/
+dist/
+coverage/
+.git/
+.gitignore
+*.log
+Dockerfile
+.dockerignore

@@ -1,0 +1,9 @@
+# Keep the build context small and reproducible: no local build output, IDE, or VCS metadata.
+target/
+.git/
+.gitignore
+.idea/
+*.iml
+*.log
+Dockerfile
+.dockerignore
