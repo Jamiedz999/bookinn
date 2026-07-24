@@ -1,5 +1,7 @@
 # BookInn
 
+[![CI](https://github.com/Jamiedz999/bookinn/actions/workflows/ci.yml/badge.svg)](https://github.com/Jamiedz999/bookinn/actions/workflows/ci.yml)
+
 A full-stack vacation rental booking platform inspired by Airbnb — built to work through booking concurrency, role-based access control, and a real end-to-end deployment pipeline.
 
 🚧 **In active development.** Progress is tracked module-by-module on the [project board](https://github.com/users/Jamiedz999/projects/1).

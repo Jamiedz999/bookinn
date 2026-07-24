@@ -1,0 +1,101 @@
+# Production deploy. Triggers only after the CI workflow finishes successfully on master, so a
+# failing gate (tests / lint / coverage) never reaches EC2. Builds both arm64 images, pushes them to
+# ECR tagged with the exact commit SHA (+ latest), then SSHes to the host to pull and restart the
+# compose stack. AWS auth uses GitHub OIDC — no long-lived AWS keys live in this repo (ADR 0005).
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
+
+# Never run two deploys at once; queue them so the host is only ever touched serially.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  id-token: write # required to request the OIDC token that assumes the AWS role
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  # Pin the deploy to the exact commit CI validated (not necessarily the branch tip).
+  IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+
+jobs:
+  deploy:
+    name: Build, push & deploy
+    # Only proceed if the upstream CI run actually passed — workflow_run also fires on failure.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # QEMU + buildx let the amd64 runner cross-build the arm64 images the Graviton host runs.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build & push backend (arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/bookinn/backend:${{ env.IMAGE_TAG }}
+            ${{ steps.ecr.outputs.registry }}/bookinn/backend:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build & push frontend (arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/bookinn/frontend:${{ env.IMAGE_TAG }}
+            ${{ steps.ecr.outputs.registry }}/bookinn/frontend:latest
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      # SSH to EC2 and roll the stack. The host pulls from ECR with its IAM instance role (no keys on
+      # the box); we only pin IMAGE_TAG in the host .env so a later manual `up` reuses the same build.
+      - name: Deploy on EC2
+# Third-party action with access to the prod SSH key — pinned to a commit SHA (v1.2.5), not a
+        # mutable tag, so a compromised upstream tag can't silently reach the host.
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: IMAGE_TAG,AWS_REGION
+          script: |
+            set -euo pipefail
+            cd /opt/bookinn
+            # Record the deployed tag in the host .env (replace if present, else append).
+            if grep -q '^IMAGE_TAG=' .env; then
+              sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|" .env
+            else
+              echo "IMAGE_TAG=${IMAGE_TAG}" >> .env
+            fi
+            registry=$(grep '^ECR_REGISTRY=' .env | cut -d= -f2)
+            aws ecr get-login-password --region "${AWS_REGION}" \
+              | docker login --username AWS --password-stdin "${registry}"
+            docker compose -f docker-compose.prod.yml --env-file .env pull
+            docker compose -f docker-compose.prod.yml --env-file .env up -d
+            docker image prune -f
