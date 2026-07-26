@@ -1,9 +1,10 @@
 # M7 — AWS deployment runbook
 
 One-time setup to deploy BookInn to AWS: **EC2 (t4g.small / arm64)** running the production
-`docker compose` stack behind nginx, talking to a private **RDS MySQL**, with images stored in
-**ECR** and **billing guardrails** in place. Cost/lifecycle rationale is in
-[ADR 0005](../adr/0005-aws-deployment-cost-lifecycle.md).
+`docker compose` stack behind nginx, with a **self-hosted MySQL container** co-located on the same
+host, images stored in **ECR**, and **billing guardrails** in place. Cost/lifecycle rationale is in
+[ADR 0005](../adr/0005-aws-deployment-cost-lifecycle.md); the DB is self-hosted rather than RDS per
+[ADR 0006](../adr/0006-self-host-mysql-container-drop-rds.md) to take the running cost to $0.
 
 > Secrets never enter the repo. The EC2 host pulls from ECR using an **IAM instance role** (no access
 > keys on the box), and DB/JWT secrets live only in `/opt/bookinn/.env` on the host.
@@ -67,41 +68,21 @@ aws ec2 authorize-security-group-ingress --group-id "$EC2_SG" \
   --protocol tcp --port 22 --cidr "$MY_IP" --region "$AWS_REGION"
 ```
 
-**RDS SG** — MySQL reachable *only* from the EC2 SG (not the internet):
+No separate database security group is needed: the DB is a MySQL container internal to the compose
+network with no host port published (ADR 0006), so nothing on the host or the internet can reach
+port 3306. This is what satisfies the "DB unreachable from the internet" AC (verified in step 9).
 
-```bash
-export RDS_SG=$(aws ec2 create-security-group --group-name bookinn-rds \
-  --description "BookInn RDS" --vpc-id "$VPC_ID" \
-  --query GroupId --output text --region "$AWS_REGION")
+## 4. Database — self-hosted MySQL container (no AWS provisioning)
 
-aws ec2 authorize-security-group-ingress --group-id "$RDS_SG" \
-  --protocol tcp --port 3306 --source-group "$EC2_SG" --region "$AWS_REGION"
-```
+There is no RDS instance to create. MySQL runs as the `mysql` service in
+`docker-compose.prod.yml` on the same EC2 host, on the compose-internal network only, with its data
+in a named volume (`bookinn-mysql-data`). It is provisioned automatically when the stack comes up in
+step 8; Flyway migrations + demo seeding populate it on the backend's first boot, and a destroyed
+volume self-heals the same way. Its footprint is memory-tuned (128M buffer pool, performance_schema
+off) and capped by `mem_limit` so it fits alongside the JVM and nginx in 2 GB.
 
-## 4. RDS MySQL (db.t3.micro, single-AZ, private)
-
-```bash
-aws rds create-db-instance \
-  --db-instance-identifier bookinn-db \
-  --engine mysql --engine-version 8.0 \
-  --db-instance-class db.t3.micro \
-  --allocated-storage 20 \
-  --db-name bookinn \
-  --master-username bookinn \
-  --master-user-password '<STRONG_DB_PASSWORD>' \
-  --vpc-security-group-ids "$RDS_SG" \
-  --no-publicly-accessible \
-  --no-multi-az \
-  --backup-retention-period 1 \
-  --region "$AWS_REGION"
-
-# Wait, then grab the endpoint for the host .env:
-aws rds wait db-instance-available --db-instance-identifier bookinn-db --region "$AWS_REGION"
-aws rds describe-db-instances --db-instance-identifier bookinn-db \
-  --query 'DBInstances[0].Endpoint.Address' --output text --region "$AWS_REGION"
-```
-
-`--no-publicly-accessible` + the RDS SG is what satisfies the "RDS unreachable from the internet" AC.
+> Migrating from a prior RDS-based deploy? Tear the instance down so the meter stops — see
+> [Teardown](#teardown-stop-the-meter).
 
 ## 5. EC2 — t4g.small (Graviton / arm64)
 
@@ -175,6 +156,16 @@ sudo mkdir -p /usr/libexec/docker/cli-plugins && sudo curl -sSL \
 sudo mkdir -p /opt/bookinn && sudo chown ec2-user /opt/bookinn && cd /opt/bookinn
 ```
 
+Add a **2 GB swapfile** — the host now runs nginx + JVM + MySQL together in 2 GB, so swap is the
+OOM safety net that lets a transient spike degrade to slow instead of killing a container (ADR 0006):
+
+```bash
+sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab   # persists across reboots
+free -h                                                       # confirm Swap: 2.0Gi
+```
+
 Copy the deploy files up **from your laptop** (new terminal, in the repo root — note `.env.example`
 is a dotfile, so `ls -a` to see it landed):
 
@@ -187,8 +178,9 @@ Then back on the host:
 
 ```bash
 cp .env.example .env
-# Fill .env: ECR_REGISTRY=$ECR, RDS endpoint from step 4, DB password from step 4,
-# and BOOKINN_JWT_SECRET=$(openssl rand -hex 32)
+# Fill .env: ECR_REGISTRY=$ECR; leave BOOKINN_DB_URL at jdbc:mysql://mysql:3306/bookinn (the
+# internal container, not an endpoint); pick a BOOKINN_DB_PASSWORD and MYSQL_ROOT_PASSWORD (the
+# mysql container is created with these on first boot); BOOKINN_JWT_SECRET=$(openssl rand -hex 32).
 nano .env
 
 # ECR login uses the instance role — no keys needed:
@@ -196,20 +188,31 @@ aws ecr get-login-password --region <REGION> | docker login --username AWS --pas
 
 docker compose -f docker-compose.prod.yml --env-file .env pull
 docker compose -f docker-compose.prod.yml --env-file .env up -d
-docker compose -f docker-compose.prod.yml ps      # backend should become healthy
+# Boot order is staggered: mysql → healthy, then backend runs Flyway/seeding → healthy, then nginx.
+docker compose -f docker-compose.prod.yml ps      # all three should read healthy/up
 ```
 
 ## 9. Verify the acceptance criteria
 
 - [ ] **App usable via public IP** — open `http://<PUBLIC_IP>/`, browse listings, click "Try as host".
 - [ ] **No secrets in repo** — `git grep -nEi 'password|secret|BEGIN .*PRIVATE KEY' -- . ':!*.example' ':!docs/**'` returns nothing real.
-- [ ] **RDS unreachable publicly** — from your laptop `nc -vz <RDS_ENDPOINT> 3306` must time out.
+- [ ] **DB unreachable publicly** — from your laptop `nc -vz <PUBLIC_IP> 3306` must time out (the
+      mysql container publishes no host port, so there is nothing listening on 3306).
+- [ ] **Stack fits the 2 GB memory budget** — on the host, `docker stats --no-stream` sums to
+      ~1.3 GB across the three services with headroom, and a cold boot leaves no OOM-kills:
+      `dmesg | grep -i oom` and `docker events --since 5m --filter event=oom` are empty.
 - [ ] **Billing alarm active** — budgets visible in Billing → Budgets; zero-spend + $1/$5/$10.
 
 ## Teardown (stop the meter)
 
 ```bash
 aws ec2 terminate-instances --instance-ids <INSTANCE_ID> --region "$AWS_REGION"
+```
+
+If you are migrating off a prior RDS-based deploy, delete the now-unused instance to stop its meter
+(one-time; new deploys never create it — ADR 0006):
+
+```bash
 aws rds delete-db-instance --db-instance-identifier bookinn-db --skip-final-snapshot --region "$AWS_REGION"
 ```
 
