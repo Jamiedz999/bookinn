@@ -17,13 +17,23 @@ export function HomePage() {
           ))}
         </Stack>
         <Stack direction="row" spacing={2}>
-          <Button component={RouterLink} to="/host/listings" variant="contained">
-            My listings
+          {/* Guest entries belong to every logged-in user — Guest is the baseline role. */}
+          <Button component={RouterLink} to="/search" variant="contained">
+            Browse stays
           </Button>
+          <Button component={RouterLink} to="/bookings/my" variant="outlined">
+            My bookings
+          </Button>
+          {/* Host is an additive capability: only show host entries to Hosts. */}
           {user?.roles.includes('HOST') && (
-            <Button component={RouterLink} to="/host/dashboard" variant="outlined">
-              Dashboard
-            </Button>
+            <>
+              <Button component={RouterLink} to="/host/listings" variant="outlined">
+                My listings
+              </Button>
+              <Button component={RouterLink} to="/host/dashboard" variant="outlined">
+                Dashboard
+              </Button>
+            </>
           )}
           <Button variant="outlined" onClick={() => logout()}>
             Log out
