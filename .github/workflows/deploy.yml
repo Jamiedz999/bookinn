@@ -29,7 +29,9 @@ jobs:
     name: Build, push & deploy
     # Only proceed if the upstream CI run actually passed — workflow_run also fires on failure.
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    runs-on: ubuntu-latest
+    # Native arm64 runner (free on public repos) so the arm64 images build natively instead of under
+    # QEMU emulation, which made the JS/esbuild frontend build hang for ~1h on a cold cache (#23).
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,8 +47,7 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # QEMU + buildx let the amd64 runner cross-build the arm64 images the Graviton host runs.
-      - uses: docker/setup-qemu-action@v3
+      # buildx drives the arm64 image builds; the runner is already arm64, so no QEMU emulation.
       - uses: docker/setup-buildx-action@v3
 
       - name: Build & push backend (arm64)
